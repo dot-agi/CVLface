@@ -36,6 +36,7 @@ pyrootutils==1.0.4
 timm==0.9.7
 einops==0.6.1
 torchmetrics==1.7.3
+fvcore==0.1.5.post20221221
 
 # Visualization and monitoring
 wandb==0.15.9
