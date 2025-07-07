@@ -38,7 +38,7 @@ class IJBBCEvaluator(BaseEvaluator):
                                                                batch_size=batch_size,
                                                                num_workers=num_workers,
                                                                collate_fn=collate_fn)
-        self.meta = torch.load(os.path.join(data_path, 'metadata.pt'))
+        self.meta = torch.load(os.path.join(data_path, 'metadata.pt'), weights_only=False)
 
 
     def integrity_check(self, eval_color_space, pipeline_color_space):
