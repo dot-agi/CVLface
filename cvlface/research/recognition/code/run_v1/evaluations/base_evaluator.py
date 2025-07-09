@@ -103,7 +103,7 @@ class BaseEvaluator():
             if hasattr(self.fabric, 'loggers') and len(self.fabric.loggers) > 0 and hasattr(self.fabric.loggers[0], 'root_dir'):
                 runname = runname + '_' + self.fabric.loggers[0].root_dir.split('/')[-1]
 
-            cache_dir = os.path.join(os.path.expanduser('~/.cache'), runname, 'temporary_cpu_communication')
+            cache_dir = os.path.join('/mnt/data/.cache', runname, 'temporary_cpu_communication')
             os.makedirs(cache_dir, exist_ok=True)
             torch.save(per_gpu_collection, os.path.join(cache_dir, f'per_gpu_collection_rank{self.fabric.local_rank}.pt'))
             self.fabric.barrier()
