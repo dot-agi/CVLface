@@ -83,12 +83,15 @@ if __name__ == '__main__':
     else:
         pipeline_name = args.pipeline_name
 
-    # launch fabric
+    # launch fabric with enhanced W&B logging
     csv_logger = CSVLogger(root_dir=output_dir, flush_logs_every_n_steps=1)
-    wandb_logger = WandbLogger(project=task, save_dir=output_dir,
-                               name=os.path.basename(output_dir),
-                               log_model=False)
-    fabric = Fabric(precision='32-true',
+    wandb_logger = WandbLogger(project=task,
+                               entity=os.getenv('WANDB_TEAM'),
+                               save_dir=output_dir,
+                               name=f"{runname}_{args.eval_config_name}",  # Better run names
+                               log_model=False,
+                               tags=[runname, args.eval_config_name, "face-recognition", "ijbc-benchmark"])
+    fabric = Fabric(precision=args.precision,  # Use actual precision arg
                     accelerator="auto",
                     strategy="ddp",
                     devices=args.num_gpu,
@@ -99,6 +102,42 @@ if __name__ == '__main__':
         fabric.launch()
     print(f"Fabric launched with {args.num_gpu} GPUS and {args.precision}")
     fabric.setup_dataloader_from_dataset = partial(setup_dataloader_from_dataset, fabric=fabric, seed=2048)
+
+    # Log model configuration and metadata
+    if fabric.local_rank == 0:
+        import time
+        eval_start_time = time.time()
+        
+        # Log model metadata (with safe config access)
+        try:
+            model_arch = model_config.model.name if hasattr(model_config, 'model') and hasattr(model_config.model, 'name') else 'unknown'
+        except:
+            model_arch = 'unknown'
+            
+        fabric.log_dict({
+            "model/name": runname,
+            "model/architecture": model_arch,
+            "model/precision": args.precision,
+            "eval/dataset": args.eval_config_name,
+            "eval/pipeline": pipeline_name,
+            "system/num_gpus": args.num_gpu,
+            "eval/start_timestamp": eval_start_time
+        })
+        
+        # Log model config as artifact (with safe serialization)
+        if hasattr(wandb_logger.experiment, 'config'):
+            try:
+                model_config_dict = dict(model_config) if hasattr(model_config, '__iter__') else str(model_config)
+                eval_config_dict = dict(eval_config) if hasattr(eval_config, '__iter__') else str(eval_config)
+            except:
+                model_config_dict = str(model_config)
+                eval_config_dict = str(eval_config)
+                
+            wandb_logger.experiment.config.update({
+                "model_config": model_config_dict,
+                "eval_config": eval_config_dict,
+                "checkpoint_path": args.ckpt_dir
+            })
 
     # prepare accelerator
     model = fabric.setup(model)
@@ -122,25 +161,60 @@ if __name__ == '__main__':
         evaluator.integrity_check(info.color_space, eval_pipeline.color_space)
         evaluators.append(evaluator)
 
-    # Evaluation
+    # Evaluation with progress tracking
     print('Evaluation Started')
     all_result = {}
-    for evaluator in evaluators:
+    
+    for eval_idx, evaluator in enumerate(evaluators):
         if fabric.local_rank == 0:
             print(f"Evaluating {evaluator.name}")
-        result = evaluator.evaluate(eval_pipeline, epoch=0, step=0, n_images_seen=0)
+            eval_step_start = time.time()
+            
+            # Log evaluation progress
+            fabric.log_dict({
+                "eval/current_evaluator": evaluator.name,
+                "eval/progress": eval_idx / len(evaluators),
+                "eval/step": eval_idx
+            })
+            
+        result = evaluator.evaluate(eval_pipeline, epoch=0, step=eval_idx, n_images_seen=0)
+        
         if fabric.local_rank == 0:
+            eval_step_time = time.time() - eval_step_start
             print(f"{evaluator.name}")
             print(result)
+            
+            # Log individual evaluator results and timing
+            fabric.log_dict({
+                f"eval/{evaluator.name}/duration_seconds": eval_step_time,
+                **{f"eval/{evaluator.name}/{k}": v for k, v in result.items() if isinstance(v, (int, float))}
+            })
+            
         all_result.update({evaluator.name + "/" + k: v for k, v in result.items()})
 
     if fabric.local_rank == 0:
+        # Calculate total evaluation time
+        total_eval_time = time.time() - eval_start_time
+        
         os.makedirs(os.path.join(output_dir, 'result'), exist_ok=True)
         save_result = pd.DataFrame(pd.Series(all_result), columns=['val'])
         save_result.to_csv(os.path.join(output_dir, f'result/eval_final.csv'))
-        mean, summary_dict = summary(save_result, epoch=0, step=0, n_images_seen=0)
-        fabric.log_dict(summary_dict)
-        summary_result =  pd.DataFrame(pd.Series(summary_dict), columns=['val'])
+        mean, summary_dict = summary(save_result, epoch=0, step=len(evaluators), n_images_seen=0)
+        
+        # Enhanced final logging with timing and model info
+        final_log_dict = {
+            **summary_dict,
+            "eval/total_duration_seconds": total_eval_time,
+            "eval/total_duration_minutes": total_eval_time / 60,
+            "eval/completed_evaluators": len(evaluators),
+            "eval/end_timestamp": time.time(),
+            "model/checkpoint_dir": os.path.basename(args.ckpt_dir)
+        }
+        
+        fabric.log_dict(final_log_dict)
+        summary_result = pd.DataFrame(pd.Series(summary_dict), columns=['val'])
         summary_result.to_csv(os.path.join(output_dir, f'result/eval_summary_final.csv'))
+        
+        print(f"Evaluation completed in {total_eval_time:.1f}s ({total_eval_time/60:.1f} min)")
 
     print('Evaluation Finished')

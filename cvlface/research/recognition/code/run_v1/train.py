@@ -56,7 +56,9 @@ if __name__ == '__main__':
     csv_logger = CSVLogger(root_dir=cfg.trainers.output_dir, flush_logs_every_n_steps=1)
     loggers.append(csv_logger)
     if cfg.trainers.using_wandb:
-        wandb_logger = WandbLogger(project=cfg.trainers.task, save_dir=cfg.trainers.output_dir,
+        wandb_logger = WandbLogger(project=cfg.trainers.task,
+                                   entity=os.getenv('WANDB_TEAM'),
+                                   save_dir=cfg.trainers.output_dir,
                                    name=os.path.basename(cfg.trainers.output_dir),
                                    log_model=False)
         loggers.append(wandb_logger)
