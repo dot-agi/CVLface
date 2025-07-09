@@ -156,3 +156,6 @@ experiments
 playground
 preprocessing
 TODO.md
+
+# Directories
+cvlface/pretrained_models/*
