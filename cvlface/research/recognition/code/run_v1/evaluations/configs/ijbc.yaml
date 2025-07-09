@@ -1,0 +1,11 @@
+data_root: ${oc.env:DATA_ROOT}
+eval_every_n_epochs: 1
+per_epoch_evaluations: {
+  "IJBC_gt_aligned": {
+    'path': 'facerec_val/IJBC_gt_aligned',
+    'evaluation_type': 'ijbbc',
+    'color_space': 'RGB',
+    'batch_size': 256,        # Increased for A100 40GB
+    'num_workers': 12         # Utilize all CPU threads
+  }
+}
