@@ -1,5 +1,8 @@
 from huggingface_hub import snapshot_download
 import os
+from dotenv import load_dotenv
+
+cvlface_dir = "/home/jupyter"
 
 models = [
     'minchul/cvlface_adaface_vit_base_kprpe_webface12m',
@@ -13,7 +16,7 @@ models = [
 
 for model in models:
     model_name = model.split('/')[-1]
-    local_dir = f'/mnt/data/CVLface/cvlface/pretrained_models/recognition/{model_name}'
+    local_dir = f'{cvlface_dir}/CVLface/cvlface/pretrained_models/recognition/{model_name}'
     os.makedirs(local_dir, exist_ok=True)
     snapshot_download(repo_id=model, local_dir=local_dir)
     print(f'Downloaded {model} to {local_dir}')

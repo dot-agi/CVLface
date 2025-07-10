@@ -5,17 +5,19 @@ import pandas as pd
 import time
 import psutil
 
+cvlface_dir = "/home/jupyter"
+
 def evaluate_model(model_name):
     """Evaluate single model with A100 optimizations"""
     start_time = time.time()
-    ckpt_dir = f"/mnt/data/CVLface/cvlface/pretrained_models/recognition/{model_name}/pretrained_model"
+    ckpt_dir = f"{cvlface_dir}/CVLface/cvlface/pretrained_models/recognition/{model_name}/pretrained_model"
     
     if not os.path.exists(ckpt_dir):
         return {'model': model_name, 'status': 'MISSING', 'time': 0, 'tpr': None}
     
     # Change to eval directory (CRITICAL FIX)
     original_dir = os.getcwd()
-    eval_dir = "/mnt/data/CVLface/cvlface/research/recognition/code/run_v1"
+    eval_dir = f"{cvlface_dir}/CVLface/cvlface/research/recognition/code/run_v1"
     
     try:
         os.chdir(eval_dir)
@@ -44,7 +46,7 @@ def evaluate_model(model_name):
         subprocess.run(cmd, check=True, env=env)
         
         # FIXED: Use eval_final.csv which contains detailed IJB-C metrics
-        result_path = f"/mnt/data/CVLface/cvlface/research/recognition/experiments/pretrained_models/eval_pretrained_model/result/eval_final.csv"
+        result_path = f"{cvlface_dir}/CVLface/cvlface/research/recognition/experiments/pretrained_models/eval_pretrained_model/result/eval_final.csv"
         
         print(f"  📊 Looking for results at: {result_path}")
         

@@ -17,6 +17,8 @@ import numpy as np
 import logging
 from datetime import datetime
 
+cvlface_dir = "/home/jupyter"
+
 def setup_logging():
     """Setup logging to capture all output to datetime-stamped log file."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -43,7 +45,7 @@ def setup_logging():
 def evaluate_model_comprehensive(model_name):
     """Evaluate single model with comprehensive metrics using enhanced eval script"""
     start_time = time.time()
-    ckpt_dir = f"/mnt/data/CVLface/cvlface/pretrained_models/recognition/{model_name}/pretrained_model"
+    ckpt_dir = f"{cvlface_dir}/CVLface/cvlface/pretrained_models/recognition/{model_name}/pretrained_model"
     
     if not os.path.exists(ckpt_dir):
         return {
@@ -63,7 +65,7 @@ def evaluate_model_comprehensive(model_name):
     
     # Change to eval directory (CRITICAL for CVLface)
     original_dir = os.getcwd()
-    eval_dir = "/mnt/data/CVLface/cvlface/research/recognition/code/run_v1"
+    eval_dir = f"{cvlface_dir}/CVLface/cvlface/research/recognition/code/run_v1"
     
     try:
         os.chdir(eval_dir)
@@ -94,7 +96,7 @@ def evaluate_model_comprehensive(model_name):
         subprocess.run(cmd, check=True, env=env)
         
         # Parse comprehensive results
-        result_path = f"/mnt/data/CVLface/cvlface/research/recognition/experiments/pretrained_models/eval_pretrained_model/result/eval_full.csv"
+        result_path = f"{cvlface_dir}/CVLface/cvlface/research/recognition/experiments/pretrained_models/eval_pretrained_model/result/eval_full.csv"
         
         logger.info(f"  📊 Looking for comprehensive results at: {result_path}")
         
